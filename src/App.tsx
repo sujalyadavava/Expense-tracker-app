@@ -110,6 +110,9 @@ const CATEGORY_HEX: Record<string, string> = {
 export default function App() {
   // Auth state
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    if (typeof window !== "undefined" && localStorage.getItem("isLoggedOut") === "true") {
+      return null;
+    }
     try {
       const stored = localStorage.getItem("loggedInUser") || localStorage.getItem("expenseTrackerUser");
       if (stored) return JSON.parse(stored);
@@ -389,8 +392,74 @@ export default function App() {
     localStorage.removeItem("expenseTrackerToken");
     localStorage.removeItem("loggedInUser");
     localStorage.removeItem("expenseTrackerUser");
+    localStorage.setItem("isLoggedOut", "true");
     setCurrentUser(null);
+    setAuthToken("");
+    setAuthMsg("");
     showToast("You have been securely logged out.", "info");
+  };
+
+  // Auth Submit handler (Login or Register)
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmittingAuth(true);
+    setAuthMsg("");
+
+    try {
+      const endpoint = authMode === "login" ? "/api/auth/login" : "/api/auth/register";
+      const payload = authMode === "login" 
+        ? { email: authEmail, password: authPassword }
+        : { name: authName || "User", email: authEmail, password: authPassword };
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Authentication failed. Please check your credentials.");
+      }
+
+      localStorage.removeItem("isLoggedOut");
+      if (data.token) {
+        localStorage.setItem("authToken", data.token);
+        localStorage.setItem("expenseTrackerToken", data.token);
+        setAuthToken(data.token);
+      }
+      if (data.user) {
+        localStorage.setItem("loggedInUser", JSON.stringify(data.user));
+        localStorage.setItem("expenseTrackerUser", JSON.stringify(data.user));
+        setCurrentUser(data.user);
+      }
+
+      showToast(authMode === "login" ? `Welcome back, ${data.user?.name || "User"}!` : "Account created successfully!", "success");
+    } catch (err: any) {
+      setAuthMsg(err.message || "Failed to authenticate.");
+      showToast(err.message || "Failed to authenticate.", "error");
+    } finally {
+      setIsSubmittingAuth(false);
+    }
+  };
+
+  // Quick Demo Login helper
+  const handleQuickDemoLogin = (email = "sy1908412@gmail.com", name = "sy1908412") => {
+    const demoUser: User = {
+      id: "usr_sy1908412",
+      name: name,
+      email: email,
+      isPremium: true,
+      ispremiumuser: true
+    };
+    localStorage.removeItem("isLoggedOut");
+    localStorage.setItem("loggedInUser", JSON.stringify(demoUser));
+    localStorage.setItem("expenseTrackerUser", JSON.stringify(demoUser));
+    localStorage.setItem("authToken", "mock_jwt_token_2026");
+    localStorage.setItem("expenseTrackerToken", "mock_jwt_token_2026");
+    setCurrentUser(demoUser);
+    setAuthToken("mock_jwt_token_2026");
+    showToast(`Logged in as ${demoUser.name}`, "success");
   };
 
   // Format currency helper
@@ -549,8 +618,149 @@ export default function App() {
         </div>
       )}
 
-      {/* Main Container */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      {!currentUser ? (
+        <div className="min-h-[calc(100vh-4rem)] flex flex-col justify-center items-center px-4 py-8">
+          <div className="w-full max-w-md space-y-6">
+            {/* Header */}
+            <div className="text-center space-y-2">
+              <div className="inline-flex h-14 w-14 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 items-center justify-center shadow-lg shadow-emerald-500/20 text-slate-950 font-black mb-1">
+                <Wallet className="w-7 h-7 text-slate-950" />
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                <h1 className="text-2xl font-bold tracking-tight text-white font-['Plus_Jakarta_Sans']">
+                  Smart Expense Tracker
+                </h1>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold tracking-wide uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
+                  <Sparkle className="w-3 h-3 fill-emerald-400" />
+                  AI Powered
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-400">
+                Track spending, manage budgets, and let AI optimize your finances.
+              </p>
+            </div>
+
+            {/* Auth Card */}
+            <div className="p-6 sm:p-8 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-2xl backdrop-blur-md space-y-5">
+              {/* Tab Switcher */}
+              <div className="flex rounded-xl bg-slate-950 p-1 border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => { setAuthMode("login"); setAuthMsg(""); }}
+                  className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                    authMode === "login"
+                      ? "bg-slate-800 text-white shadow-sm"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setAuthMode("register"); setAuthMsg(""); }}
+                  className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                    authMode === "register"
+                      ? "bg-slate-800 text-white shadow-sm"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  Create Account
+                </button>
+              </div>
+
+              {authMsg && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{authMsg}</span>
+                </div>
+              )}
+
+              {/* Form */}
+              <form onSubmit={handleAuthSubmit} className="space-y-4">
+                {authMode === "register" && (
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={authName}
+                      onChange={(e) => setAuthName(e.target.value)}
+                      placeholder="Your Name"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 focus:border-emerald-500 focus:outline-none text-sm text-slate-100 placeholder:text-slate-500 transition-colors"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={authEmail}
+                    onChange={(e) => setAuthEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 focus:border-emerald-500 focus:outline-none text-sm text-slate-100 placeholder:text-slate-500 transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={authPassword}
+                    onChange={(e) => setAuthPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 focus:border-emerald-500 focus:outline-none text-sm text-slate-100 placeholder:text-slate-500 transition-colors"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmittingAuth}
+                  className="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold text-slate-950 bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 transition-all cursor-pointer shadow-lg shadow-emerald-500/15 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isSubmittingAuth ? (
+                    <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                  ) : authMode === "login" ? (
+                    "Sign In"
+                  ) : (
+                    "Create Account"
+                  )}
+                </button>
+              </form>
+
+              {/* Quick Demo Access Divider */}
+              <div className="relative flex items-center justify-center">
+                <div className="border-t border-slate-800 w-full" />
+                <span className="bg-slate-900 px-3 text-[11px] uppercase tracking-wider text-slate-500 shrink-0 font-medium">
+                  Instant Demo Access
+                </span>
+              </div>
+
+              {/* 1-Click Demo Login */}
+              <button
+                type="button"
+                onClick={() => handleQuickDemoLogin()}
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold text-slate-200 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Sparkles className="w-4 h-4 text-emerald-400" />
+                <span>Quick Demo Login (sy1908412)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Main Container */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         
         {/* ========================================================
             TOP HEADER (Modern SaaS 3-Zone Contract)
@@ -1564,6 +1774,8 @@ export default function App() {
           </div>
         </div>
       )}
-    </div>
+    </>
+  )}
+</div>
   );
 }
