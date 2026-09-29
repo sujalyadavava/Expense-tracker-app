@@ -15,9 +15,6 @@ async function connectDB() {
 
   const uri = process.env.MONGODB_URI;
   if (!uri) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("MONGODB_URI is required.");
-    }
     console.log("MONGODB_URI not provided; running with local persistent database fallback.");
     return false;
   }

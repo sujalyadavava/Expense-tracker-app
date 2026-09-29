@@ -65,11 +65,6 @@ app.use("/api/purchase/webhook", express.raw({ type: "application/json" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-const distPath = path.join(__dirname, "../dist");
-const fs = require("fs");
-if (fs.existsSync(distPath)) {
-  app.use(express.static(distPath));
-}
 app.use(express.static(path.join(__dirname, "../frontend")));
 
 // ---------------------------------------------------------------------------
