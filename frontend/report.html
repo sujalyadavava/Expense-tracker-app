@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expense Report — Expense Tracker</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="dashboard">
+
+    <!-- ================================================================
+         PAGE HEADER
+    ================================================================ -->
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">Spending overview</p>
+        <h1>Expense Report</h1>
+        <p class="subtitle" id="reportPeriodLabel">Track your spending clearly, by day, week, month or year.</p>
+      </div>
+      <div class="header-actions">
+        <span id="premiumBadge" class="premium-badge" hidden>⭐ Premium</span>
+        <a href="expenses.html" class="nav-link-btn">← Back to Expenses</a>
+      </div>
+    </header>
+
+    <!-- ================================================================
+         NOTIFICATION BANNER
+    ================================================================ -->
+    <div id="notificationBanner" class="notification-banner" hidden role="alert" aria-live="assertive"></div>
+
+    <!-- ================================================================
+         REPORT PANEL
+    ================================================================ -->
+    <section class="panel report-panel" aria-label="Expense report">
+
+      <!-- Period selector + date picker + download buttons -->
+      <div class="report-toolbar">
+        <div class="report-filters">
+
+          <!-- Period tabs -->
+          <div class="report-periods" role="group" aria-label="Report period">
+            <button type="button" data-period="daily"   aria-pressed="true">Daily</button>
+            <button type="button" data-period="weekly"  aria-pressed="false">Weekly</button>
+            <button type="button" data-period="monthly" aria-pressed="false">Monthly</button>
+            <button type="button" data-period="yearly"  aria-pressed="false">Yearly</button>
+          </div>
+
+          <!-- Date picker -->
+          <label class="report-date-filter" for="reportDate">
+            <span>Report date</span>
+            <input id="reportDate" type="date" aria-label="Choose the date for this report">
+          </label>
+        </div>
+
+        <!-- Download buttons -->
+        <div class="report-downloads">
+          <button id="downloadCsvBtn" class="report-download" type="button"
+                  aria-describedby="premiumNotice" disabled>
+            📥 Download CSV
+          </button>
+          <button id="downloadPdfBtn" class="report-download report-pdf" type="button"
+                  aria-describedby="premiumNotice" disabled>
+            📄 Download PDF
+          </button>
+        </div>
+      </div>
+
+      <!-- Premium notice (shown to non-premium users) -->
+      <div id="premiumNotice" class="premium-notice-bar" hidden role="alert">
+        <span>🔒 <strong>Premium membership required</strong> to download reports.</span>
+        <a href="expenses.html#premium" class="premium-upgrade-link">Upgrade to Premium →</a>
+      </div>
+
+      <!-- Status / loading message -->
+      <p id="reportStatus" class="expense-list-status" role="status" aria-live="polite">Loading report…</p>
+
+      <!-- 4 KPI summary cards (Total Expenses, Total Amount, Average Expense, Highest Expense) -->
+      <div class="report-summary" aria-label="Expense summary" style="grid-template-columns: repeat(4, 1fr);">
+        <div class="report-kpi count-kpi">
+          <span class="eyebrow">Total Expenses</span>
+          <strong id="transactionCount">0</strong>
+        </div>
+        <div class="report-kpi expense-kpi">
+          <span class="eyebrow">Total Amount</span>
+          <strong id="totalExpense">₹0</strong>
+        </div>
+        <div class="report-kpi category-kpi">
+          <span class="eyebrow">Average Expense</span>
+          <strong id="averageExpense">₹0</strong>
+        </div>
+        <div class="report-kpi expense-kpi">
+          <span class="eyebrow">Highest Expense</span>
+          <strong id="highestExpense">₹0</strong>
+        </div>
+      </div>
+
+      <!-- Advanced Filter Section -->
+      <div class="report-filters-bar" style="margin: 16px 0; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
+        <div>
+          <label style="font-size: 11px; font-weight: 700; color: #aab4bb; display: block; margin-bottom: 4px;">Start Date</label>
+          <input type="date" id="filterStartDate" style="padding: 8px 10px; background: #0f1418; color: white; border: 1px solid #39464e; border-radius: 8px; font-size: 12px;">
+        </div>
+        <div>
+          <label style="font-size: 11px; font-weight: 700; color: #aab4bb; display: block; margin-bottom: 4px;">End Date</label>
+          <input type="date" id="filterEndDate" style="padding: 8px 10px; background: #0f1418; color: white; border: 1px solid #39464e; border-radius: 8px; font-size: 12px;">
+        </div>
+        <div>
+          <label style="font-size: 11px; font-weight: 700; color: #aab4bb; display: block; margin-bottom: 4px;">Category</label>
+          <select id="filterCategory" style="padding: 8px 10px; background: #0f1418; color: white; border: 1px solid #39464e; border-radius: 8px; font-size: 12px;">
+            <option value="">All Categories</option>
+            <option>Food</option>
+            <option>Transport</option>
+            <option>Travel</option>
+            <option>Shopping</option>
+            <option>Bills</option>
+            <option>Entertainment</option>
+            <option>Health</option>
+            <option>Education</option>
+            <option>Salary</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div style="flex: 1; min-width: 180px;">
+          <label style="font-size: 11px; font-weight: 700; color: #aab4bb; display: block; margin-bottom: 4px;">Search Description</label>
+          <input type="text" id="filterSearch" placeholder="Search expenses..." style="width: 100%; padding: 8px 10px; background: #0f1418; color: white; border: 1px solid #39464e; border-radius: 8px; font-size: 12px;">
+        </div>
+        <div>
+          <button type="button" id="clearFiltersBtn" style="width: auto; padding: 8px 14px; background: #29343c; color: #eee; border: 1px solid #39464e; border-radius: 8px; font-size: 12px; cursor: pointer;">Clear Filters</button>
+        </div>
+      </div>
+
+      <!-- Transaction table -->
+      <div class="table-wrap">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col">Description</th>
+              <th scope="col">Category</th>
+              <th scope="col">Amount</th>
+              <th scope="col" style="text-align: center;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="reportRows"></tbody>
+        </table>
+      </div>
+
+      <p class="report-data-note">
+        This report focuses only on your expenses.
+        CSV and PDF downloads require Premium membership.
+      </p>
+    </section>
+
+  </main>
+  <script src="js/report.js"></script>
+</body>
+</html>

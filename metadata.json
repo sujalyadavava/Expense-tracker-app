@@ -1,0 +1,6 @@
+{
+  "name": "Smart Expense Tracker",
+  "description": "Professional modern SaaS AI-powered Expense Tracker with real-time analytics, leaderboard, intelligent categorization, and financial reports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

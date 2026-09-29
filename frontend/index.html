@@ -1,0 +1,146 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>AI Expense Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <section class="auth-screen" id="authScreen">
+        <div class="auth-hero"><span>AI POWERED</span><h1>Smart Expense Tracker</h1><p>Track spending. Let AI make it smarter.</p></div>
+        <section class="login-panel">
+            <div class="login-mark">⚡</div>
+            <h2 id="authTitle">Welcome back</h2>
+            <p class="login-subtitle" id="authSubtitle">Sign in to continue to your expenses</p>
+            <form id="authForm" class="login-form">
+                <label id="authNameLabel" hidden>Name<input id="authName" type="text" placeholder="Your name"></label>
+                <label>Email<input id="authEmail" type="email" placeholder="you@example.com" required></label>
+                <label>Password<input id="authPassword" type="password" minlength="6" placeholder="At least 6 characters" required></label>
+                <a id="forgotPasswordLink" href="forgot-password.html">Forgot Password?</a>
+                <label id="authConfirmPasswordLabel" hidden>Confirm Password<input id="authConfirmPassword" type="password" minlength="6" placeholder="Confirm password"></label>
+                <button id="authSubmit" type="submit">Login</button>
+            </form>
+            <button id="registerBtn" type="button" class="secondary-btn auth-switch">Create a new account</button>
+            <p id="authMsg"></p>
+        </section>
+    </section>
+    <main id="trackerApp" hidden>
+        <header>
+            <div><span class="ai-badge">✨ AI POWERED</span>
+                <h1>Smart Expense Tracker</h1>
+                <p>Let AI understand your spending.</p>
+            </div><div class="header-actions"><button id="insightBtn">✨ AI Spending Insight</button><a class="report-link" href="/report.html">Expense Report</a><button id="buyPremiumBtn" class="premium-btn" type="button">⭐ Buy Premium Membership</button><div id="premiumUserBadge" class="premium-badge" hidden>👑 Premium User</div><button id="logoutBtn" class="logout-btn" type="button">Logout</button></div>
+        </header>
+        <div id="premiumBanner" class="premium-banner" hidden>🎉 You are a Premium User Now</div>
+
+        <!-- 4 Compact Statistics Cards Section -->
+        <section class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-header">
+                    <span class="stat-label">Total Expense</span>
+                    <span class="stat-icon">💰</span>
+                </div>
+                <div class="stat-value" id="statTotalExpense">₹0</div>
+                <p class="stat-sub">All-time expenditure</p>
+            </div>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <span class="stat-label">Number of Expenses</span>
+                    <span class="stat-icon">📊</span>
+                </div>
+                <div class="stat-value" id="statExpenseCount">0</div>
+                <p class="stat-sub">Transactions logged</p>
+            </div>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <span class="stat-label">Current Rank</span>
+                    <span class="stat-icon">🏆</span>
+                </div>
+                <div class="stat-value text-gold" id="statCurrentRank">#—</div>
+                <p class="stat-sub">Community standing</p>
+            </div>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <span class="stat-label">Membership Status</span>
+                    <span class="stat-icon">⭐</span>
+                </div>
+                <div class="stat-value text-gold" id="statMembership">Free</div>
+                <p class="stat-sub" id="statMembershipSub">Standard access</p>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Add Expense</h2>
+            <form id="form"><input id="amount" type="number" min="1" step=".01" placeholder="Amount: ₹" required><input
+                    id="description" placeholder="Description: e.g. Lunch at Domino's" required><select id="category">
+                    <option value="">🤖 Let AI choose</option>
+                    <option>Food</option>
+                    <option>Transport</option>
+                    <option>Travel</option>
+                    <option>Shopping</option>
+                    <option>Bills</option>
+                    <option>Entertainment</option>
+                    <option>Health</option>
+                    <option>Education</option>
+                    <option>Salary</option>
+                    <option>Other</option>
+                </select><input id="expenseDate" type="date" aria-label="Expense date" required><button id="addExpenseBtn">Add Expense</button></form>
+            <p id="msg"></p>
+        </section>
+        <section class="card leaderboard-card" aria-labelledby="leaderboardTitle">
+            <div class="head">
+                <div>
+                    <span class="section-label">COMMUNITY</span>
+                    <h2 id="leaderboardTitle">🏆 Leaderboard</h2>
+                </div>
+                <button id="leaderboardRefresh" class="secondary-btn" type="button">Refresh</button>
+            </div>
+            <div id="leaderboardSummary" class="leaderboard-summary" hidden>
+                <span>My Rank: <strong id="myRank">-</strong></span>
+                <span>My Total Expense: <strong id="myTotalExpense">₹0</strong></span>
+                <span>My Expense Count: <strong id="myExpenseCount">0</strong></span>
+            </div>
+            <p id="leaderboardStatus" class="leaderboard-status" aria-live="polite">Open to load leaderboard.</p>
+            <div class="leaderboard-table-wrap" id="leaderboardTableWrap" hidden>
+                <table class="leaderboard-table">
+                    <thead>
+                        <tr><th>Rank</th><th>User</th><th>Membership</th><th>Total Expense</th><th>Expenses</th></tr>
+                    </thead>
+                    <tbody id="leaderboardBody"></tbody>
+                </table>
+            </div>
+        </section>
+        <section class="card">
+            <div class="head">
+                <h2>Your Expenses</h2><b id="total">Total: ₹0.00</b>
+            </div>
+            <div id="insight"></div>
+            <div class="expense-pagination">
+                <label for="expensePageSize">Expenses per page</label>
+                <select id="expensePageSize">
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="30">30</option>
+                    <option value="40">40</option>
+                </select>
+                <span id="expensePaginationSummary" aria-live="polite"></span>
+                <nav id="expensePageNavigation" aria-label="Expense pages" hidden>
+                    <button id="expensePreviousPage" type="button">Previous</button>
+                    <span id="expensePageNumbers" class="expense-page-numbers" aria-label="Page numbers"></span>
+                    <span id="expensePageIndicator" aria-live="polite"></span>
+                    <button id="expenseNextPage" type="button">Next</button>
+                </nav>
+            </div>
+            <p id="expenseListStatus" class="expense-list-status" role="status" aria-live="polite"></p>
+            <div id="list"></div>
+        </section>
+    </main>
+    <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+    <script type="module" src="/script.js"></script>
+</body>
+
+</html>

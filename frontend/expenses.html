@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expenses - Expense Tracker</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="dashboard">
+
+    <!-- ================================================================
+         PAGE HEADER
+    ================================================================ -->
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">Expense intelligence</p>
+        <h1>Daily Expenses</h1>
+        <p class="subtitle">Track spending while AI keeps your categories organised.</p>
+      </div>
+      <div class="header-actions">
+        <!-- Premium status badge (shown when user is premium) -->
+        <span id="premiumBadge" class="premium-badge" hidden aria-label="Premium member">⭐ Premium</span>
+        <!-- Navigation -->
+        <a href="report.html" class="nav-link-btn" id="reportLink">📊 Reports</a>
+        <button id="logoutBtn" type="button" class="btn-danger">Logout</button>
+      </div>
+    </header>
+
+    <!-- ================================================================
+         NOTIFICATION BANNER
+    ================================================================ -->
+    <div id="notificationBanner" class="notification-banner" hidden role="alert" aria-live="assertive"></div>
+
+    <!-- ================================================================
+         TOP GRID: Add Expense + Premium/AI Card
+    ================================================================ -->
+    <section class="dashboard-grid">
+
+      <!-- Add Expense Form -->
+      <div class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">New entry</p>
+            <h2>Add an expense</h2>
+          </div>
+          <span class="ai-mark" title="AI-assisted categorisation">AI</span>
+        </div>
+        <form id="expenseForm">
+          <label for="amount">Amount (₹)</label>
+          <input id="amount" type="number" min="0.01" step="0.01" placeholder="e.g. 450" required>
+          <label for="description">What was it for?</label>
+          <input id="description" type="text" placeholder="Lunch at Domino's" maxlength="500" required>
+          <p id="aiSuggestion" class="ai-suggestion" aria-live="polite">AI category will appear here.</p>
+          <button type="submit" id="addExpenseBtn">Add expense</button>
+        </form>
+      </div>
+
+      <!-- Premium & AI Insight Card -->
+      <div class="panel premium-side-panel">
+        <!-- Premium section -->
+        <div id="premiumSection">
+          <div class="panel-heading" style="margin-bottom:14px;">
+            <div>
+              <p class="eyebrow">Membership</p>
+              <h2>Premium Features</h2>
+            </div>
+            <span class="rank-icon" title="Premium">⭐</span>
+          </div>
+
+          <!-- Not-premium state -->
+          <div id="upgradeCta">
+            <p class="muted" style="font-size:.9rem;margin-bottom:12px;">
+              Unlock report downloads (CSV &amp; PDF), advanced analytics, and more.
+            </p>
+            <ul class="feature-list">
+              <li>✅ Download Daily / Weekly / Monthly / Yearly reports</li>
+              <li>✅ CSV &amp; PDF export</li>
+              <li>✅ AI spending insights</li>
+              <li>✅ Priority support</li>
+            </ul>
+            <button id="buyPremiumBtn" type="button" class="btn-premium">
+              ⭐ Buy Premium — ₹199
+            </button>
+            <p id="premiumMsg" class="premium-msg" aria-live="polite"></p>
+          </div>
+
+          <!-- Already-premium state -->
+          <div id="premiumActiveMsg" hidden>
+            <div class="premium-active-card">
+              <p class="premium-active-title">⭐ You are a Premium member!</p>
+              <p class="muted" style="font-size:.85rem;">You have access to all premium features including report downloads.</p>
+              <a href="report.html" class="btn-report-link">📊 Open Reports →</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Insight section -->
+        <div class="ai-insight-section">
+          <div class="panel-heading" style="margin:20px 0 10px;">
+            <div>
+              <p class="eyebrow">AI Analysis</p>
+              <h2 style="font-size:1.1rem;">Spending Insight</h2>
+            </div>
+            <span class="ai-mark">AI</span>
+          </div>
+          <button id="insightBtn" type="button" class="btn-insight">✨ Get AI Insight</button>
+          <div id="insightResult" class="insight-card" hidden aria-live="polite"></div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ================================================================
+         EXPENSE LIST WITH PAGINATION
+    ================================================================ -->
+    <section class="panel expense-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Your activity</p>
+          <h2>Recent expenses</h2>
+        </div>
+        <div class="total-expense-card">
+          <p class="eyebrow" style="margin-bottom:2px;">Total Expense</p>
+          <span id="totalExpenseAmount" class="total-amount">₹0</span>
+        </div>
+      </div>
+
+      <div class="pagination-controls">
+        <label for="pageSizeSelect">Expenses per page</label>
+        <select id="pageSizeSelect" aria-label="Expenses per page">
+          <option value="5">5</option>
+          <option value="10">10</option>
+          <option value="20">20</option>
+          <option value="30">30</option>
+          <option value="40">40</option>
+        </select>
+        <span id="paginationSummary" class="pagination-summary" aria-live="polite"></span>
+        <nav id="pageNavigation" class="page-navigation" aria-label="Expense pages" hidden>
+          <button id="previousPageBtn" type="button" aria-label="Previous page">Previous</button>
+          <span id="pageNumbers" class="page-numbers" aria-label="Page numbers"></span>
+          <span id="pageIndicator" class="page-indicator" aria-live="polite"></span>
+          <button id="nextPageBtn" type="button" aria-label="Next page">Next</button>
+        </nav>
+      </div>
+
+      <p id="expenseListStatus" class="expense-list-status" role="status" aria-live="polite"></p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Amount</th>
+              <th scope="col">Description</th>
+              <th scope="col">Category</th>
+              <th scope="col">Source</th>
+              <th scope="col">Date</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="expenseTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         LEADERBOARD
+    ================================================================ -->
+    <section class="panel leaderboard-section" id="leaderboardSection">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Community</p>
+          <h2>Spending Leaderboard</h2>
+        </div>
+        <button id="leaderboardRefreshBtn" type="button" class="btn-refresh" aria-label="Refresh leaderboard">↻ Refresh</button>
+      </div>
+
+      <!-- My stats summary (shown when current user appears in leaderboard) -->
+      <div id="myStats" class="my-stats" hidden>
+        <div class="stat-chip">
+          <span class="eyebrow">Your Rank</span>
+          <strong id="myRank">—</strong>
+        </div>
+        <div class="stat-chip">
+          <span class="eyebrow">Total Spent</span>
+          <strong id="myTotalExpense">₹0</strong>
+        </div>
+        <div class="stat-chip">
+          <span class="eyebrow">Transactions</span>
+          <strong id="myExpenseCount">0</strong>
+        </div>
+      </div>
+
+      <p id="leaderboardStatus" class="expense-list-status" role="status" aria-live="polite">Loading leaderboard...</p>
+
+      <div id="leaderboardTableWrap" class="table-wrap" hidden>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Rank</th>
+              <th scope="col">Name</th>
+              <th scope="col">Total Spent</th>
+              <th scope="col">Transactions</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboardBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!--
+    Cashfree JS SDK — loaded from CDN.
+    The cashfree.js SDK will be initialised in expenses.js using the
+    payment_session_id returned by the backend.
+    We load it unconditionally (small script, cached by browser).
+  -->
+  <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+  <script src="js/expenses.js"></script>
+</body>
+</html>
