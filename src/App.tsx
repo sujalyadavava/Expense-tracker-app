@@ -19,8 +19,6 @@ import {
   Calendar,
   DollarSign,
   TrendingUp,
-  BarChart3,
-  PieChart,
   Download,
   AlertCircle,
   CheckCircle2,
@@ -174,6 +172,7 @@ export default function App() {
 
   // Premium modal / confirmation state
   const [showPremiumModal, setShowPremiumModal] = useState<boolean>(false);
+  const [showDownloadDropdown, setShowDownloadDropdown] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" | "info" } | null>(null);
 
   // Report filters state
@@ -520,60 +519,76 @@ export default function App() {
     return Math.max(...filteredReportExpenses.map((e) => e.amount));
   }, [filteredReportExpenses]);
 
-  // Category breakdown for charts
-  const categoryChartData = useMemo(() => {
-    const mapping: Record<string, number> = {};
-    filteredReportExpenses.forEach((e) => {
-      mapping[e.category] = (mapping[e.category] || 0) + e.amount;
-    });
-    const total = Object.values(mapping).reduce((a, b) => a + b, 0) || 1;
-    return Object.entries(mapping)
-      .map(([cat, val]) => ({
-        category: cat,
-        amount: val,
-        percentage: Math.round((val / total) * 100)
-      }))
-      .sort((a, b) => b.amount - a.amount);
-  }, [filteredReportExpenses]);
-
-  // Time distribution for charts
-  const timelineChartData = useMemo(() => {
-    const dailyMap: Record<string, number> = {};
-    filteredReportExpenses.forEach((e) => {
-      const key = e.date || e.expenseDate || "Recent";
-      dailyMap[key] = (dailyMap[key] || 0) + e.amount;
-    });
-    return Object.entries(dailyMap)
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .slice(-7);
-  }, [filteredReportExpenses]);
-
-  // CSV Download simulation
-  const handleDownloadCsv = () => {
-    if (!currentUser?.isPremium && !currentUser?.ispremiumuser) {
-      setShowPremiumModal(true);
-      return;
+  // Helper to retrieve expenses specifically for Weekly, Monthly, or Yearly duration
+  const getExpensesForPeriod = (period: "weekly" | "monthly" | "yearly") => {
+    const now = new Date();
+    let startDate = new Date();
+    if (period === "weekly") {
+      startDate = new Date(Date.now() - 7 * 86400000);
+    } else if (period === "monthly") {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (period === "yearly") {
+      startDate = new Date(now.getFullYear(), 0, 1);
     }
+    const startStr = startDate.toISOString().slice(0, 10);
+    const endStr = now.toISOString().slice(0, 10);
+
+    return expenses.filter((e) => {
+      const d = e.date || e.expenseDate || "";
+      if (!d) return true;
+      return d >= startStr && d <= endStr;
+    });
+  };
+
+  // Dedicated download handler for Weekly, Monthly, or Yearly basis
+  const handleDownloadPeriod = (period: "weekly" | "monthly" | "yearly", format: "csv" | "pdf" = "csv") => {
+    const periodExpenses = getExpensesForPeriod(period);
+    const periodTitle = period === "weekly" ? "Weekly" : period === "monthly" ? "Monthly" : "Yearly";
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    if (format === "csv") {
+      const headers = "Date,Description,Category,Amount (INR)\n";
+      const rows = periodExpenses
+        .map((e) => `"${fmtDate(e.date || e.expenseDate)}","${(e.description || '').replace(/"/g, '""')}","${e.category}",${e.amount}`)
+        .join("\n");
+      const blob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${periodTitle}_Expense_Report_${todayStr}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      showToast(`${periodTitle} CSV report downloaded (${periodExpenses.length} transactions).`, "success");
+    } else {
+      handleSetQuickPeriod(period);
+      setActiveView("report");
+      showToast(`Compiling ${periodTitle} Report for download / print...`, "info");
+      setTimeout(() => {
+        window.print();
+      }, 350);
+    }
+  };
+
+  // CSV Download for currently active filter in report view
+  const handleDownloadCsv = () => {
+    const periodLabel = reportPeriod.charAt(0).toUpperCase() + reportPeriod.slice(1);
     const headers = "Date,Description,Category,Amount (INR)\n";
     const rows = filteredReportExpenses
-      .map((e) => `"${fmtDate(e.date)}","${e.description.replace(/"/g, '""')}","${e.category}",${e.amount}`)
+      .map((e) => `"${fmtDate(e.date || e.expenseDate)}","${(e.description || '').replace(/"/g, '""')}","${e.category}",${e.amount}`)
       .join("\n");
     const blob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `Expense_Report_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `${periodLabel}_Expense_Report_${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    showToast("CSV Report downloaded successfully.", "success");
+    showToast(`${periodLabel} CSV Report downloaded successfully.`, "success");
   };
 
   const handleDownloadPdf = () => {
-    if (!currentUser?.isPremium && !currentUser?.ispremiumuser) {
-      setShowPremiumModal(true);
-      return;
-    }
-    showToast("PDF Report compiled and ready for download.", "success");
+    const periodLabel = reportPeriod.charAt(0).toUpperCase() + reportPeriod.slice(1);
+    showToast(`${periodLabel} PDF Report compiled and ready for download/print.`, "success");
     window.print();
   };
 
@@ -810,6 +825,80 @@ export default function App() {
               <FileText className="w-4 h-4" />
               <span>{activeView === "report" ? "← Back to Dashboard" : "Expense Report"}</span>
             </button>
+
+            {/* Quick Download Dropdown Button */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium border border-slate-700/80 bg-slate-900/90 text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+              >
+                <Download className="w-4 h-4 text-emerald-400" />
+                <span>Download Report</span>
+              </button>
+
+              {showDownloadDropdown && (
+                <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-1.5 z-40 space-y-1 backdrop-blur-xl">
+                  <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800/80">
+                    Direct Export By Basis
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleDownloadPeriod("weekly", "csv");
+                      setShowDownloadDropdown(false);
+                    }}
+                    className="w-full text-left px-2.5 py-2 rounded-xl text-xs font-medium text-slate-200 hover:bg-slate-800/90 hover:text-white flex items-center justify-between transition-colors cursor-pointer"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+                      Weekly Basis (CSV)
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-mono">7 Days</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleDownloadPeriod("monthly", "csv");
+                      setShowDownloadDropdown(false);
+                    }}
+                    className="w-full text-left px-2.5 py-2 rounded-xl text-xs font-medium text-slate-200 hover:bg-slate-800/90 hover:text-white flex items-center justify-between transition-colors cursor-pointer"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Calendar className="w-3.5 h-3.5 text-blue-400" />
+                      Monthly Basis (CSV)
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-mono">This Month</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleDownloadPeriod("yearly", "csv");
+                      setShowDownloadDropdown(false);
+                    }}
+                    className="w-full text-left px-2.5 py-2 rounded-xl text-xs font-medium text-slate-200 hover:bg-slate-800/90 hover:text-white flex items-center justify-between transition-colors cursor-pointer"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                      Yearly Basis (CSV)
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-mono">This Year</span>
+                  </button>
+                  <div className="border-t border-slate-800/80 my-1" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleDownloadPdf();
+                      setShowDownloadDropdown(false);
+                    }}
+                    className="w-full text-left px-2.5 py-2 rounded-xl text-xs font-medium text-blue-300 hover:bg-blue-500/10 flex items-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Print / Save as PDF</span>
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* Premium Button / Status */}
             {isUserPremium ? (
@@ -1331,7 +1420,7 @@ export default function App() {
                   className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-900 bg-emerald-400 hover:bg-emerald-300 transition-all cursor-pointer shadow-sm"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Download CSV</span>
+                  <span>Download {reportPeriod.charAt(0).toUpperCase() + reportPeriod.slice(1)} CSV</span>
                 </button>
                 <button
                   onClick={handleDownloadPdf}
@@ -1495,89 +1584,122 @@ export default function App() {
               </div>
             </div>
 
-            {/* EXPENSE REPORT VISUALIZATION (Charts) */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Spending by Category */}
-              <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-4">
-                <div className="flex items-center justify-between">
+            {/* DIRECT PERIOD DOWNLOADS (Weekly, Monthly, Yearly) */}
+            <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+                <div>
                   <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <PieChart className="w-4 h-4 text-emerald-400" />
-                    Spending by Category
+                    <Download className="w-4 h-4 text-emerald-400" />
+                    Periodic Report Downloads
                   </h3>
-                  <span className="text-xs text-slate-400 font-mono">
-                    {categoryChartData.length} active
-                  </span>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Download expense statements directly on a Weekly, Monthly, or Yearly basis
+                  </p>
                 </div>
-
-                {categoryChartData.length === 0 ? (
-                  <p className="text-xs text-slate-500 py-8 text-center">No category data for current filter.</p>
-                ) : (
-                  <div className="space-y-2.5">
-                    {categoryChartData.map((item) => (
-                      <div key={item.category} className="space-y-1">
-                        <div className="flex justify-between text-xs font-medium">
-                          <span className="text-slate-300 flex items-center gap-1.5">
-                            <span
-                              className="w-2 h-2 rounded-full"
-                              style={{ backgroundColor: CATEGORY_HEX[item.category] || "#64748b" }}
-                            />
-                            {item.category}
-                          </span>
-                          <span className="font-mono text-slate-200">
-                            {fmtCurrency(item.amount)} ({item.percentage}%)
-                          </span>
-                        </div>
-                        <div className="w-full h-2 rounded-full bg-slate-950 overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all duration-500"
-                            style={{
-                              width: `${item.percentage}%`,
-                              backgroundColor: CATEGORY_HEX[item.category] || "#10b981"
-                            }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 w-fit">
+                  Instant CSV &amp; PDF Export
+                </span>
               </div>
 
-              {/* Spending over Time */}
-              <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4 text-blue-400" />
-                    Spending Timeline
-                  </h3>
-                  <span className="text-xs text-slate-400 font-mono">Recent Days</span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                {/* 1. Weekly Download Card */}
+                <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/90 flex flex-col justify-between space-y-3 hover:border-emerald-500/40 transition-colors">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+                        Weekly Basis
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">Last 7 Days</span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {getExpensesForPeriod("weekly").length} transactions recorded
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadPeriod("weekly", "csv")}
+                      className="flex-1 py-2 px-3 rounded-lg text-xs font-semibold text-slate-950 bg-emerald-400 hover:bg-emerald-300 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Weekly CSV</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadPeriod("weekly", "pdf")}
+                      className="py-2 px-3 rounded-lg text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 transition-all cursor-pointer"
+                    >
+                      PDF
+                    </button>
+                  </div>
                 </div>
 
-                {timelineChartData.length === 0 ? (
-                  <p className="text-xs text-slate-500 py-8 text-center">No timeline data available.</p>
-                ) : (
-                  <div className="h-44 flex items-end justify-between gap-2 pt-6 px-2">
-                    {(() => {
-                      const maxVal = Math.max(...timelineChartData.map((d) => d[1]), 1);
-                      return timelineChartData.map(([dStr, val]) => {
-                        const heightPct = Math.max(12, Math.round((val / maxVal) * 100));
-                        return (
-                          <div key={dStr} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
-                            <span className="text-[10px] font-mono text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                              ₹{val}
-                            </span>
-                            <div
-                              style={{ height: `${heightPct}%` }}
-                              className="w-full rounded-t-lg bg-gradient-to-t from-blue-600/40 to-blue-400 hover:to-emerald-400 transition-all cursor-pointer"
-                            />
-                            <span className="text-[10px] text-slate-400 font-mono truncate w-full text-center">
-                              {dStr.slice(5)}
-                            </span>
-                          </div>
-                        );
-                      });
-                    })()}
+                {/* 2. Monthly Download Card */}
+                <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/90 flex flex-col justify-between space-y-3 hover:border-blue-500/40 transition-colors">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-blue-400" />
+                        Monthly Basis
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">Current Month</span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {getExpensesForPeriod("monthly").length} transactions recorded
+                    </p>
                   </div>
-                )}
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadPeriod("monthly", "csv")}
+                      className="flex-1 py-2 px-3 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Monthly CSV</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadPeriod("monthly", "pdf")}
+                      className="py-2 px-3 rounded-lg text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 transition-all cursor-pointer"
+                    >
+                      PDF
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3. Yearly Download Card */}
+                <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/90 flex flex-col justify-between space-y-3 hover:border-amber-500/40 transition-colors">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                        Yearly Basis
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">Current Year</span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {getExpensesForPeriod("yearly").length} transactions recorded
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadPeriod("yearly", "csv")}
+                      className="flex-1 py-2 px-3 rounded-lg text-xs font-semibold text-slate-950 bg-amber-400 hover:bg-amber-300 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Yearly CSV</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadPeriod("yearly", "pdf")}
+                      className="py-2 px-3 rounded-lg text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 transition-all cursor-pointer"
+                    >
+                      PDF
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
