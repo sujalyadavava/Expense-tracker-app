@@ -1,7 +1,10 @@
-const app = require("../backend/app");
-const { connectDB } = require("../backend/config/database");
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
 
-module.exports = async (req, res) => {
+const app = require("../backend/app.js");
+const { connectDB } = require("../backend/config/database.js");
+
+export default async function handler(req, res) {
   try {
     const pathname = String(req.url || "").split("?")[0];
     if (pathname.startsWith("/api/") || pathname.startsWith("/purchase")) {
@@ -12,4 +15,4 @@ module.exports = async (req, res) => {
     console.error("Vercel Function Error:", error.message);
     return res.status(503).json({ success: false, message: "Database unavailable. Please try again shortly." });
   }
-};
+}

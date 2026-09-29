@@ -2,9 +2,10 @@
   "name": "react-example",
   "private": true,
   "version": "0.0.0",
+  "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "echo 'Build ready'",
+    "build": "vite build",
     "start": "tsx server.ts",
     "clean": "rm -rf dist server.js",
     "lint": "echo 'Lint passed'"

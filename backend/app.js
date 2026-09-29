@@ -65,6 +65,11 @@ app.use("/api/purchase/webhook", express.raw({ type: "application/json" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+const distPath = path.join(__dirname, "../dist");
+const fs = require("fs");
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+}
 app.use(express.static(path.join(__dirname, "../frontend")));
 
 // ---------------------------------------------------------------------------
@@ -191,11 +196,17 @@ app.use("/api/purchase", authMiddleware, purchaseRoutes);
 app.use("/purchase", authMiddleware, purchaseRoutes);
 
 // ---------------------------------------------------------------------------
-// SPA fallback — serve login page for all other GET requests
+// SPA fallback — serve React app for all other non-API GET requests
 // ---------------------------------------------------------------------------
-if (process.env.SERVE_LEGACY_FRONTEND === "true") {
-  app.get("/", (req, res) => res.sendFile(path.join(__dirname, "../frontend/login.html")));
-}
+app.get("*", (req, res, next) => {
+  const url = String(req.url || "");
+  if (url.startsWith("/api") || url.startsWith("/purchase")) return next();
+  const distIndex = path.join(__dirname, "../dist/index.html");
+  if (fs.existsSync(distIndex)) {
+    return res.sendFile(distIndex);
+  }
+  return res.sendFile(path.join(__dirname, "../frontend/index.html"));
+});
 
 // ---------------------------------------------------------------------------
 // Global error handler
